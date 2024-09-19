@@ -6,31 +6,7 @@ await pool.connect();
 
 const router = express.Router()
 
-router.get('/materia/:id', async (req, res)=>{
-    try{
-         const { id } = req.params
-         const { recordset } =  await pool.query`select * from questoes where materia = ${id}`
-         return res.status(200).json(recordset)
-    }
-    catch(error){
-         return res.status(501).json('ops...algo deu errado')
-    }
- })
-
- router.get('/questao/:materia', async (req, res)=> {
-    try{
-        const { materia } = req.params
-        const { recordset } = await pool.query`select q.id, q.enunciado, q.materia,a.id_questao, a.a, a.b, a.c, a.d, a.e, a.correta from questoes as q
-                                                inner join alternativas as a
-                                                on a.id_questao = q.id
-                                                where q.materia = ${materia}`
-        return res.status(200).json(recordset)
-    }
-    catch(error){
-        return res.status(501).json('Algo deu errado!')
-    }
- })
-
+ // rota de login
 router.post('/login', async (req, res)=>{
     try {
         const { email, senha } = req.body;
@@ -53,14 +29,23 @@ router.post('/login', async (req, res)=>{
     }
 })
 
+// rota de cadastro
 router.post('/user/novo', async(req, res)=>{
     try{
         const {email, senha} = req.body;
         console.log(email, senha)
         if(email != null && email != "" && senha != null && senha != "")
         {
-            await pool.query`insert into usuario values(${email}, ${senha})`
-            return res.status(200).json('Cadastrado com sucesso')
+            // Verifica se o email já está cadastrado
+            const userExists = await pool.query`SELECT * FROM usuario WHERE email = ${email}`;
+            
+            if (userExists.recordset.length > 0) {
+                return res.status(409).json('Email já cadastrado!');
+            }
+
+            // Insere o novo usuário se o email não estiver cadastrado
+            await pool.query`INSERT INTO usuario (email, senha) VALUES (${email}, ${senha})`;
+            return res.status(200).json('Cadastrado com sucesso');
         }
         return res.status(400).json("bad request") 
 
@@ -75,5 +60,56 @@ router.post('/user/novo', async(req, res)=>{
         return res.status(500).json('Error on server!')
     }
 })
+
+//avatar
+router.put('/user/avatar', async (req, res) => {
+    try {
+        const { userId, avatarId } = req.body;
+        
+        if (!userId || !avatarId) {
+            return res.status(400).json("Bad request: Missing userId or avatarId");
+        }
+
+        const avatarExists = await pool.query`SELECT * FROM avatar WHERE avatarId = ${avatarId}`;
+        
+        if (avatarExists.recordset && avatarExists.recordset.length === 0) {
+            return res.status(404).json('Avatar não encontrado');
+        }
+
+        const userExists = await pool.query`SELECT * FROM usuario WHERE id = ${userId}`;
+        if (userExists.recordset && userExists.recordset.length === 0) {
+            return res.status(404).json('Usuário não encontrado');
+        }
+
+        await pool.query`UPDATE usuario SET avatarId = ${avatarId} WHERE id = ${userId}`;
+        
+        return res.status(200).json('Avatar atualizado com sucesso');
+    } catch (error) {
+        return res.status(500).json('Erro no servidor ao atualizar o avatar');
+    }
+});
+
+    // // Rota para buscar provas por nome e ano no corpo da requisição
+    // router.get('/provas', async (req, res) => {
+    //     try {
+    //         const { prova, ano, link } = req.body; // Obter parâmetros do corpo da requisição
+
+    //         if (!prova || !ano || !link) {
+    //             return res.status(400).json("Bad request: Missing nome or ano");
+    //         }
+
+    //         const { recordset } = await pool.query`SELECT prova, ano, link FROM provas WHERE id = ${id}`;
+            
+    //         if (recordset.length === 0) {
+    //             return res.status(404).json('Nenhuma prova encontrada para os parâmetros fornecidos');
+    //         }
+
+    //         return res.status(200).json(recordset);
+    //     } catch (error) {
+    //         console.error(error);
+    //         return res.status(500).json('Erro no servidor ao buscar provas');
+    //     }
+    // });
+
 
 export default router
