@@ -6,28 +6,30 @@ await pool.connect();
 
 const router = express.Router()
 
- // rota de login
-router.post('/login', async (req, res)=>{
+//Rota de Login Atualizada para a possibilidade do Soft Delete
+router.post('/login', async (req, res) => {
     try {
         const { email, senha } = req.body;
-        if(email != null && email != "" && senha != null && senha != "")
-        {
-            const { recordset } = await pool.query`select id from usuario where email = ${email} and senha = ${senha}`;
-            if(recordset.length == 0)
-            {
-                return res.status(401).json('usuario ou senha incorreta')
+        if (email != null && email !== "" && senha != null && senha !== "") {
+            const { recordset } = await pool.query`
+                SELECT id FROM usuario 
+                WHERE email = ${email} 
+                AND senha = ${senha} 
+                AND is_deleted = 0`; // Verifica se o usuário não está deletado
+
+            if (recordset.length === 0) {
+                return res.status(401).json('Usuário ou senha incorreta');
             }
 
-            return res.status(200).json(recordset)
+            return res.status(200).json(recordset);
         }
-            return res.status(400).json("bad request")
-
-    } 
-    catch (error){
-        console.log(error)
-        return res.status(500).json('Error on server!')
+        return res.status(400).json("Bad request");
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json('Error on server!');
     }
-})
+});
+
 
 // rota de cadastro
 router.post('/user/novo', async(req, res)=>{
@@ -61,6 +63,28 @@ router.post('/user/novo', async(req, res)=>{
     }
 })
 
+// Rota de soft delete
+router.delete('/user/:id', async (req, res) => {
+    try {
+        const { id } = req.params; // O ID é extraído da URL
+        
+        // Verifica se o usuário existe
+        const userExists = await pool.query`SELECT * FROM usuario WHERE id = ${id} AND is_deleted = 0`;
+        
+        if (userExists.recordset.length === 0) {
+            return res.status(404).json('Usuário não encontrado ou já deletado.');
+        }
+
+        // Atualiza o usuário para marcar como deletado
+        await pool.query`UPDATE usuario SET is_deleted = 1 WHERE id = ${id}`;
+        return res.status(200).json('Usuário deletado com sucesso.');
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json('Error on server!');
+    }
+});
+
+
 //avatar
 router.put('/user/avatar', async (req, res) => {
     try {
@@ -89,27 +113,27 @@ router.put('/user/avatar', async (req, res) => {
     }
 });
 
-    // // Rota para buscar provas por nome e ano no corpo da requisição
-    // router.get('/provas', async (req, res) => {
-    //     try {
-    //         const { prova, ano, link } = req.body; // Obter parâmetros do corpo da requisição
+    // Rota para buscar provas por nome e ano no corpo da requisição PRECISA DE REVISÃO
+    router.get('/provas', async (req, res) => {
+        try {
+            const { prova, ano, link } = req.body; // Obter parâmetros do corpo da requisição
 
-    //         if (!prova || !ano || !link) {
-    //             return res.status(400).json("Bad request: Missing nome or ano");
-    //         }
+            if (!prova || !ano || !link) {
+                return res.status(400).json("Bad request: Missing nome or ano");
+            }
 
-    //         const { recordset } = await pool.query`SELECT prova, ano, link FROM provas WHERE id = ${id}`;
+            const { recordset } = await pool.query`SELECT prova, ano, link FROM provas WHERE id = ${id}`;
             
-    //         if (recordset.length === 0) {
-    //             return res.status(404).json('Nenhuma prova encontrada para os parâmetros fornecidos');
-    //         }
+            if (recordset.length === 0) {
+                return res.status(404).json('Nenhuma prova encontrada para os parâmetros fornecidos');
+            }
 
-    //         return res.status(200).json(recordset);
-    //     } catch (error) {
-    //         console.error(error);
-    //         return res.status(500).json('Erro no servidor ao buscar provas');
-    //     }
-    // });
+            return res.status(200).json(recordset);
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json('Erro no servidor ao buscar provas');
+        }
+    });
 
 
 export default router
