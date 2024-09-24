@@ -114,15 +114,11 @@ router.put('/user/avatar', async (req, res) => {
 });
 
     // Rota para buscar provas por nome e ano no corpo da requisição PRECISA DE REVISÃO
-    router.get('/provas', async (req, res) => {
+    router.get('/provas/:id', async (req, res) => {
         try {
-            const { prova, ano, link } = req.body; // Obter parâmetros do corpo da requisição
+            const { id } = req.params; // Obter parâmetros do corpo da requisição
 
-            if (!prova || !ano || !link) {
-                return res.status(400).json("Bad request: Missing nome or ano");
-            }
-
-            const { recordset } = await pool.query`SELECT prova, ano, link FROM provas WHERE id = ${id}`;
+            const { recordset } = await pool.query`SELECT vestibular, ano, link, descricao FROM provas WHERE id = ${id}`;
             
             if (recordset.length === 0) {
                 return res.status(404).json('Nenhuma prova encontrada para os parâmetros fornecidos');
